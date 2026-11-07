@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08080a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Card Vault</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100dvh;
+  background:radial-gradient(90% 55% at 50% -8%,#191b21 0%,transparent 62%),
+    radial-gradient(70% 45% at 100% 105%,#121319 0%,transparent 60%),#08080a;
+  color:#f2f0ee;
+  font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+body.locked{overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,select{font:inherit;color:inherit}
+
+.app{max-width:520px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;
+  padding:0 22px calc(130px + env(safe-area-inset-bottom,0px))}
+
+.banner{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;font-size:12.5px;
+  line-height:1.5;background:rgba(255,180,60,.1);border:1px solid rgba(255,180,60,.3);color:#ffcf80}
+.banner.show{display:block}
+.banner b{color:#ffe1a8}
+.banner.err{background:rgba(255,70,80,.1);border-color:rgba(255,70,80,.35);color:#ffb0b5}
+.banner.err b{color:#ffd0d3}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;
+  padding-top:calc(20px + env(safe-area-inset-top,0px))}
+.brand{font-size:12px;font-weight:700;letter-spacing:.32em;text-transform:uppercase;color:#8b8b95}
+.topright{display:flex;gap:8px}
+.morebtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  font-size:19px;line-height:1;color:#c9c9d2;background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.1);transition:transform .16s,color .16s}
+.morebtn:active{transform:scale(.92)}
+.morebtn svg{width:17px;height:17px}
+#lockBtn.unlocked{color:#8fdca6}
+
+.hero{margin-top:22px}
+.hero h1{margin:0;font-size:30px;line-height:1.08;letter-spacing:-.025em;font-weight:600}
+.hero p{margin:9px 0 0;font-size:13.5px;line-height:1.55;color:#7c7c88}
+
+.deck{position:relative;margin-top:24px;padding-top:64px;touch-action:pan-y}
+.deck::before{content:"";display:block;aspect-ratio:1.586/1}
+.card-slot{position:absolute;top:64px;left:0;right:0;will-change:transform;
+  transition:transform .5s cubic-bezier(.2,.9,.2,1),opacity .3s ease}
+.empty{position:absolute;top:64px;left:0;right:0;aspect-ratio:1.586/1;
+  border:1.5px dashed rgba(255,255,255,.14);border-radius:16px;
+  display:grid;place-items:center;text-align:center;color:#5f5f6a;font-size:13px;
+  line-height:1.6;padding:24px}
+
+.card-frame{container-type:inline-size;perspective:1100px;aspect-ratio:1.586/1;width:100%}
+.card{position:relative;width:100%;height:100%;border-radius:16px;overflow:hidden;
+  font-size:4.6cqw;color:var(--ink,#fff);background:#111;
+  transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transform-style:preserve-3d;transition:transform .18s ease-out;
+  box-shadow:0 34px 54px -24px rgba(0,0,0,.95),0 10px 24px -14px rgba(0,0,0,.85),
+    0 0 0 .5px rgba(255,255,255,.07);
+  -webkit-user-select:none;user-select:none}
+.card.is-reset{transition:transform .75s cubic-bezier(.2,.9,.2,1)}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:6;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,0,0,.45),
+    inset 0 0 0 1px rgba(255,255,255,.05)}
+.card__bg{position:absolute;inset:0;z-index:0}
+.card__pattern{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.5}
+.card__wordmark{position:absolute;right:1.1em;bottom:2.9em;z-index:2;
+  font-size:.62em;letter-spacing:.35em;font-weight:700;color:var(--sub);
+  opacity:.55;pointer-events:none;text-transform:uppercase}
+.card__grain{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:.22;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:160px 160px}
+.card__sheen{position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:radial-gradient(45% 45% at var(--mx,50%) var(--my,50%),
+    rgba(255,255,255,.22),rgba(255,255,255,0) 70%)}
+.card__content{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;
+  justify-content:space-between;padding:1.15em 1.25em}
+.card__top{display:flex;align-items:flex-start;justify-content:space-between;gap:1em}
+.card__bank{display:block;font-size:1.02em;font-weight:650;letter-spacing:.02em;line-height:1.15}
+.card__variant{display:block;margin-top:.34em;font-size:.64em;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--sub);font-weight:500}
+.card__net{display:flex;align-items:center;height:1.7em;flex:none}
+.card__mid{display:flex;align-items:center;gap:.75em}
+.card__chip{width:2.85em;height:2.05em;display:block;border-radius:.4em;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+.card__wave{width:1.45em;height:1.45em;color:var(--sub)}
+.card__type{margin-left:auto;font-size:.56em;letter-spacing:.2em;font-weight:700;
+  padding:.45em .7em;border-radius:.5em;border:1px solid var(--sub);color:var(--sub)}
+.card__bot{display:flex;flex-direction:column;gap:.75em}
+.card__num{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  font-size:1.16em;letter-spacing:.13em;font-weight:500;white-space:nowrap}
+.card__meta{display:flex;gap:2.2em;align-items:flex-end}
+.card__label{display:block;font-size:.56em;letter-spacing:.15em;color:var(--sub);
+  margin-bottom:.4em;font-weight:600}
+.card__value{display:block;font-size:.84em;letter-spacing:.07em;font-weight:550;
+  text-transform:uppercase}
+
+.net{font-weight:800;font-size:1.02em;letter-spacing:.03em;color:#fff}
+.net--visa{font-style:italic;font-size:1.16em;letter-spacing:.01em}
+.net--mc{display:inline-flex;align-items:center}
+.net--mc i{display:block;width:1.5em;height:1.5em;border-radius:50%}
+.net--mc i:first-child{background:#eb001b}
+.net--mc i:last-child{background:#f79e1b;margin-left:-.62em;mix-blend-mode:screen}
+.net--amex{background:#2e77bc;padding:.14em .4em;border-radius:.18em;
+  font-size:.78em;font-style:normal;letter-spacing:.07em}
+.net--rupay{font-style:normal;background:linear-gradient(90deg,#f5a623,#4a90d9);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.net--plain{font-size:.72em;letter-spacing:.14em;opacity:.9}
+
+.deck-nav{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:28px}
+.navbtn{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.03);display:grid;place-items:center;font-size:20px;
+  line-height:1;color:#c9c9d2;transition:transform .18s,background .18s}
+.navbtn:active{background:rgba(255,255,255,.11);transform:scale(.93)}
+.navbtn:disabled{opacity:.22;pointer-events:none}
+.counter{font-size:12px;letter-spacing:.18em;color:#6a6a76;min-width:70px;
+  text-align:center;font-variant-numeric:tabular-nums}
+
+.fab{position:fixed;z-index:40;right:22px;bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  height:54px;padding:0 24px;border-radius:27px;background:#f4f2ee;color:#0a0a0b;
+  font-weight:650;font-size:14.5px;display:flex;align-items:center;gap:9px;
+  box-shadow:0 18px 42px -14px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.06);
+  transition:transform .18s}
+.fab:active{transform:scale(.95)}
+.fab svg{width:17px;height:17px}
+
+.sheet{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;
+  justify-content:flex-end;opacity:0;pointer-events:none;transition:opacity .28s ease}
+.sheet.is-open{opacity:1;pointer-events:auto}
+.sheet__scrim{position:absolute;inset:0;background:rgba(4,4,6,.74);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.sheet__panel{position:relative;width:100%;max-width:520px;margin:0 auto;background:#0f0f13;
+  border-radius:26px 26px 0 0;border-top:1px solid rgba(255,255,255,.09);
+  padding:8px 22px calc(26px + env(safe-area-inset-bottom,0px));
+  max-height:93dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  transform:translateY(26px);transition:transform .36s cubic-bezier(.2,.9,.2,1)}
+.sheet.is-open .sheet__panel{transform:translateY(0)}
+.sheet__grab{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.16);
+  margin:8px auto 20px}
+.sheet__title{margin:0 0 4px;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.sheet__sub{margin:0 0 20px;font-size:13px;color:#767682;line-height:1.55}
+.detail__card{max-width:340px;margin:4px auto 0}
+
+.warnbox{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;font-size:12.5px;
+  line-height:1.5;background:rgba(255,180,60,.08);border:1px solid rgba(255,180,60,.28);
+  color:#ffcf80}
+.warnbox.show{display:block}
+.warnbox b{color:#ffe1a8}
+
+.specs{margin:14px 0 0;padding:0;display:grid;gap:1px;background:rgba(255,255,255,.07);
+  border-radius:16px;overflow:hidden;list-style:none}
+.spec{display:flex;justify-content:space-between;gap:16px;padding:14px 16px;
+  background:#0f0f13;font-size:14px}
+.spec dt{color:#7c7c88;margin:0}
+.spec dd{margin:0;font-weight:550;text-align:right;word-break:break-word}
+.spec--sensitive dd{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  letter-spacing:.04em;font-weight:500}
+.spec--revealed dd{color:#ffd76a}
+.spec--empty dd{color:#5f5f6a;font-style:italic;font-weight:400}
+
+.actions{display:flex;gap:10px;margin-top:22px}
+.actions .btn{flex:1}
+.btn{height:50px;border-radius:14px;display:grid;place-items:center;font-weight:600;
+  font-size:14.5px;transition:transform .16s}
+.btn:active{transform:scale(.97)}
+.btn--primary{background:#f4f2ee;color:#0a0a0b}
+.btn--ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#e8e6e3}
+.btn--danger{background:rgba(255,60,70,.12);border:1px solid rgba(255,60,70,.3);color:#ff7a83}
+.btn--sm{height:42px;font-size:13px}
+.btn:disabled{opacity:.5;pointer-events:none}
+
+.revealbar{display:flex;gap:10px;margin-top:16px}
+.revealbar .btn{flex:1;font-size:13.5px}
+
+.live-wrap{margin:6px 0 18px;padding:0 2px}
+.live-label{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:#5f5f6a;margin-bottom:10px;font-weight:600}
+.live-label .match{color:#8fdca6;letter-spacing:.05em;text-transform:none;font-size:11px;
+  opacity:0;transition:opacity .2s}
+.live-label .match.show{opacity:1}
+
+.form{margin-top:2px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:#6f6f7c;margin-bottom:8px;font-weight:600}
+.field input,.field select{width:100%;height:50px;padding:0 15px;border-radius:13px;
+  background:#17171c;border:1px solid rgba(255,255,255,.08);outline:none;font-size:15px;
+  color:#f2f0ee;transition:border-color .18s,background .18s}
+.field input::placeholder{color:#4e4e59}
+.field input:focus,.field select:focus{border-color:rgba(255,255,255,.32);background:#1b1b21}
+.field select{appearance:none;-webkit-appearance:none;padding-right:42px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b8b95' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 16px center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hint{margin-top:6px;font-size:11.5px;color:#5f5f6a;line-height:1.45}
+.hint b{color:#8f8f9c;font-weight:600}
+.hint.err{color:#ff9aa2}
+.hint.ok{color:#8fdca6}
+.form__actions{display:flex;gap:10px;margin-top:22px}
+.form__actions .btn{flex:1}
+
+/* debug panel */
+.dbg{display:none;margin-top:16px;padding:10px 12px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  font-size:11px;color:#8a8a95;line-height:1.55;white-space:pre-wrap;word-break:break-all}
+.dbg.show{display:block}
+.dbg b{color:#c9c9d2}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="chipGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f6e0a0"/><stop offset="30%" stop-color="#cbab63"/>
+      <stop offset="55%" stop-color="#f2e2b0"/><stop offset="80%" stop-color="#b08c45"/>
+      <stop offset="100%" stop-color="#e8d39a"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="topbar">
+    <span class="brand">Card Vault</span>
+    <div class="topright">
+      <button class="morebtn" id="lockBtn" aria-label="Vault lock"></button>
+      <button class="morebtn" id="moreBtn" aria-label="Options">⋯</button>
+    </div>
+  </div>
+
+  <div class="banner" id="storageBanner">
+    <b>Storage is blocked here.</b> Open this file in a real browser (Chrome/Safari) to save cards on your phone. You can still use <b>⋯ → Export</b>.
+  </div>
+  <div class="banner err" id="cryptoBanner">
+    <b>Encryption is not available in this context.</b> The Reveal feature needs a secure context (HTTPS or localhost). Open the file directly in Chrome/Safari — don't test inside a preview sandbox.
+  </div>
+
+  <div class="hero">
+    <h1>Your cards,<br>made tangible.</h1>
+    <p>Swipe the top card away to cycle. Tap a card to see its details and reveal saved numbers.</p>
+  </div>
+
+  <div class="deck" id="deck"></div>
+  <div class="deck-nav">
+    <button class="navbtn" id="prevBtn" aria-label="Previous card">‹</button>
+    <span class="counter" id="counter"></span>
+    <button class="navbtn" id="nextBtn" aria-label="Next card">›</button>
+  </div>
+</div>
+
+<button class="fab" id="addBtn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+       stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  Add card
+</button>
+
+<!-- detail sheet -->
+<div class="sheet" id="detailSheet">
+  <div class="sheet__scrim" data-close></div>
+  <div class="sheet__panel">
+    <div class="sheet__grab"></div>
+    <div class="detail__card" id="detailCard"></div>
+    <div class="warnbox" id="detailWarn"></div>
+    <div class="revealbar">
+      <button class="btn btn--ghost" id="revealBtn">Reveal full details</button>
+    </div>
+    <dl class="specs" id="detailSpecs"></dl>
+    <div class="actions">
+      <button class="btn btn--ghost" id="editBtn">Edit</button>
+      <button class="btn btn--danger" id="deleteBtn">Delete</button>
+    </div>
+    <div class="dbg" id="dbg"></div>
+  </div>
+</div>
+
+<!-- form sheet -->
+<div class="sheet" id="formSheet">
+  <div class="sheet__scrim" data-close></div>
+  <div class="sheet__panel">
+    <div class="sheet__grab"></div>
+    <h2 class="sheet__title" id="formTitle">Add card</h2>
+    <p class="sheet__sub">Only the last 4 digits are shown on the card face. Full number and CVV are encrypted with your vault password.</p>
+
+    <div class="live-wrap">
+      <div class="live-label">
+        <span>Live preview</span>
+        <span class="match" id="matchLabel">✓ design matched</span>
+      </div>
+      <div class="detail__card" id="livePreview"></div>
+    </div>
+
+    <form class="form" id="cardForm" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="f-number">Card number</label>
+        <input id="f-number" name="number" inputmode="numeric"
+               placeholder="0000 0000 0000 0000">
+        <div class="hint" id="numberHint">Enter the full 16-digit number to enable Reveal. Only last 4 saved in plain text.</div>
+      </div>
+
+      <div class="field">
+        <label for="f-bank">Bank / Issuer</label>
+        <input id="f-bank" name="bank" list="bankList"
+               placeholder="HDFC Bank" maxlength="28" required>
+        <datalist id="bankList"></datalist>
+      </div>
+
+      <div class="field">
+        <label for="f-variant">Card name / variant</label>
+        <input id="f-variant" name="variant" list="variantList"
+               placeholder="Regalia Gold" maxlength="28">
+        <datalist id="variantList"></datalist>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="f-network">Network</label>
+          <select id="f-network" name="network">
+            <option>Visa</option><option>Mastercard</option><option>RuPay</option>
+            <option>Amex</option><option>Diners</option><option>Discover</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-type">Type</label>
+          <select id="f-type" name="type">
+            <option value="credit">Credit</option>
+            <option value="debit">Debit</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="f-expiry">Valid thru</label>
+          <input id="f-expiry" name="expiry" inputmode="numeric" maxlength="5"
+                 placeholder="08/28">
+        </div>
+        <div class="field">
+          <label for="f-cvv">CVV</label>
+          <input id="f-cvv" name="cvv" inputmode="numeric" maxlength="4"
+                 placeholder="•••" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-holder">Card holder</label>
+        <input id="f-holder" name="holder" placeholder="A. SHARMA" maxlength="26">
+      </div>
+
+      <input type="hidden" name="design" id="f-design" value="">
+      <input type="hidden" name="customFinish" id="f-customFinish" value="obsidian">
+
+      <div class="form__actions">
+        <button type="button" class="btn btn--ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn--primary">Save card</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- password sheet -->
+<div class="sheet" id="pwdSheet">
+  <div class="sheet__scrim" id="pwdScrim"></div>
+  <div class="sheet__panel">
+    <div class="sheet__grab"></div>
+    <h2 class="sheet__title" id="pwdTitle">Unlock vault</h2>
+    <p class="sheet__sub" id="pwdSub">Enter your vault password.</p>
+    <form id="pwdForm" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="pwd-input">Password</label>
+        <input id="pwd-input" type="password" autocomplete="current-password">
+      </div>
+      <div class="field" id="pwd-confirm-wrap" style="display:none">
+        <label for="pwd-confirm">Confirm password</label>
+        <input id="pwd-confirm" type="password" autocomplete="new-password">
+      </div>
+      <div class="hint" id="pwdHint"></div>
+      <div class="form__actions">
+        <button type="button" class="btn btn--ghost" id="pwdCancel">Cancel</button>
+        <button type="submit" class="btn btn--primary" id="pwdSubmit">Unlock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- backup sheet -->
+<div class="sheet" id="backupSheet">
+  <div class="sheet__scrim" data-close></div>
+  <div class="sheet__panel">
+    <div class="sheet__grab"></div>
+    <h2 class="sheet__title">Backup & security</h2>
+    <p class="sheet__sub">Backups contain encrypted blobs — you'll need the same vault password to reveal numbers after importing.</p>
+    <div class="actions">
+      <button class="btn btn--ghost" id="exportBtn">Export</button>
+      <button class="btn btn--primary" id="importBtn">Import</button>
+    </div>
+    <div class="actions">
+      <button class="btn btn--ghost" id="testBtn">Add test card</button>
+      <button class="btn btn--ghost" id="lockMenuBtn">Lock vault</button>
+    </div>
+    <div class="actions">
+      <button class="btn btn--danger" id="resetBtn">Reset vault</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <p class="hint" style="margin-top:16px">
+      <b>Add test card</b> seeds a demo card with a known 16-digit number and CVV so you can verify the reveal flow works on this browser.
+    </p>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   BOOT CHECKS
+   ===================================================================== */
+const storageOK = (() => {
+  try {
+    localStorage.setItem('__cv_test__', '1');
+    localStorage.removeItem('__cv_test__');
+    return true;
+  } catch { return false; }
+})();
+
+const cryptoOK = !!(typeof crypto !== 'undefined' && crypto.subtle &&
+  typeof crypto.subtle.importKey === 'function' &&
+  typeof crypto.subtle.encrypt === 'function');
+
+if (!storageOK) document.getElementById('storageBanner').classList.add('show');
+if (!cryptoOK)  document.getElementById('cryptoBanner').classList.add('show');
+
+/* =====================================================================
+   STORAGE
+   ===================================================================== */
+const KEY = 'cardvault.v3';
+const OLD_KEY = 'cardvault.v2';
+
+let vault = null;
+let sessionKey = null;
+let pos = 0;
+let activeId = null;
+let editingId = null;
+
+function loadVault() {
+  if (!storageOK) return { v: 3, kdf: null, check: null, cards: [] };
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY));
+    if (raw && raw.v === 3 && Array.isArray(raw.cards)) return raw;
+  } catch {}
+  try {
+    const old = JSON.parse(localStorage.getItem(OLD_KEY));
+    if (Array.isArray(old)) {
+      return { v: 3, kdf: null, check: null, cards: old.map(c => ({ ...c, sec: null })) };
+    }
+  } catch {}
+  return { v: 3, kdf: null, check: null, cards: [] };
+}
+
+function saveVault() {
+  if (!storageOK) return false;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(vault));
+    return localStorage.getItem(KEY) !== null;
+  } catch { return false; }
+}
+
+const uid = () =>
+  (crypto && crypto.randomUUID ? crypto.randomUUID()
+   : 'c' + Date.now().toString(36) + Math.random().toString(16).slice(2));
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+/* =====================================================================
+   CRYPTO — PBKDF2(SHA-256, 310k) → AES-GCM-256
+   ===================================================================== */
+const TE = new TextEncoder();
+const TD = new TextDecoder();
+const b64  = (buf) => {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+};
+const unb64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const KDF_ITER = 310000;
+
+async function deriveKey(password, saltB64, iter) {
+  const salt = unb64(saltB64);
+  const base = await crypto.subtle.importKey(
+    'raw', TE.encode(password), 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' },
+    base,
+    { name: 'AES-GCM', length: 256 },
+    false, ['encrypt', 'decrypt']
+  );
+}
+
+async function seal(key, text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, TE.encode(text));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+
+async function unseal(key, blob) {
+  const iv = unb64(blob.iv);
+  const ct = unb64(blob.ct);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  return TD.decode(pt);
+}
+
+async function setupVaultPassword(password) {
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const key  = await deriveKey(password, salt, KDF_ITER);
+  const check = await seal(key, 'VAULT-OK');
+  vault.kdf = { salt, iter: KDF_ITER, hash: 'SHA-256' };
+  vault.check = check;
+  sessionKey = key;
+  saveVault();
+}
+
+async function unlockVault(password) {
+  if (!vault.kdf) throw new Error('No vault password set');
+  const key = await deriveKey(password, vault.kdf.salt, vault.kdf.iter);
+  let ok;
+  try { ok = await unseal(key, vault.check); }
+  catch { throw new Error('Incorrect password'); }
+  if (ok !== 'VAULT-OK') throw new Error('Incorrect password');
+  sessionKey = key;
+  return key;
+}
+
+function lockVault() {
+  sessionKey = null;
+  hideReveal(true);
+  updateLockIndicator();
+}
+
+async function sealCardData(card, pan, cvv) {
+  if (!sessionKey) throw new Error('Vault locked');
+  const payload = JSON.stringify({ pan: pan || '', cvv: cvv || '' });
+  card.sec = await seal(sessionKey, payload);
+}
+
+async function openCardData(card) {
+  if (!card.sec) return { pan: '', cvv: '' };
+  if (!sessionKey) throw new Error('Vault locked');
+  let pt;
+  try { pt = await unseal(sessionKey, card.sec); }
+  catch (e) { throw new Error('Decryption failed — the saved data may have been encrypted with a different password.'); }
+  try {
+    const parsed = JSON.parse(pt);
+    return {
+      pan: typeof parsed.pan === 'string' ? parsed.pan : '',
+      cvv: typeof parsed.cvv === 'string' ? parsed.cvv : '',
+    };
+  } catch {
+    throw new Error('Saved data is corrupted.');
+  }
+}
+
+/* =====================================================================
+   DESIGN LIBRARY
+   ===================================================================== */
+const DESIGNS = [
+  { id:'hdfc-infinia', bank:'HDFC Bank', name:'Infinia', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(135deg,#26292f 0%,#0a0b0d 50%,#1a1c21 100%)',
+            ink:'#e7dfcb', sub:'rgba(231,223,203,.5)', wordmark:'INFINIA', pattern:'metal' } },
+  { id:'hdfc-regalia-gold', bank:'HDFC Bank', name:'Regalia Gold', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#151313 0%,#0b0a0a 55%,#201c18 100%)',
+            ink:'#e8d9a9', sub:'rgba(232,217,169,.55)', wordmark:'REGALIA', pattern:'stripe' } },
+  { id:'hdfc-millennia', bank:'HDFC Bank', name:'Millennia', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#7a0f0f 0%,#120303 55%,#4a0a0a 100%)',
+            ink:'#ffd9c4', sub:'rgba(255,217,196,.55)', wordmark:'MILLENNIA', pattern:'aura' } },
+  { id:'icici-amazon-pay', bank:'ICICI Bank', name:'Amazon Pay', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#1b3a6b 0%,#0a1c3d 55%,#122a52 100%)',
+            ink:'#eaf2ff', sub:'rgba(234,242,255,.55)', wordmark:'AMAZON PAY', pattern:'aura' } },
+  { id:'icici-sapphiro', bank:'ICICI Bank', name:'Sapphiro', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#3a1f66 0%,#140827 55%,#291349 100%)',
+            ink:'#f4eeff', sub:'rgba(244,238,255,.55)', wordmark:'SAPPHIRO', pattern:'metal' } },
+  { id:'axis-magnus', bank:'Axis Bank', name:'Magnus', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#1c1a16 0%,#080706 55%,#181613 100%)',
+            ink:'#e5dab0', sub:'rgba(229,218,176,.5)', wordmark:'MAGNUS', pattern:'metal' } },
+  { id:'sbi-elite', bank:'SBI Card', name:'Elite', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#1a2236 0%,#070b14 55%,#131a2b 100%)',
+            ink:'#e8e0c8', sub:'rgba(232,224,200,.5)', wordmark:'ELITE', pattern:'stripe' } },
+  { id:'amex-platinum', bank:'American Express', name:'Platinum', network:'Amex', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#b8bcc2 0%,#6a6e74 50%,#d5d8dc 100%)',
+            ink:'#23262b', sub:'rgba(35,38,43,.55)', wordmark:'AMERICAN EXPRESS', pattern:'metal' } },
+  { id:'amex-gold', bank:'American Express', name:'Gold', network:'Amex', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#d8b874 0%,#8a6a2e 50%,#e8c884 100%)',
+            ink:'#2c1e05', sub:'rgba(44,30,5,.55)', wordmark:'AMERICAN EXPRESS', pattern:'metal' } },
+  { id:'kotak-white', bank:'Kotak Mahindra Bank', name:'White', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#f4f1ea 0%,#e6e0d2 55%,#f0ecdf 100%)',
+            ink:'#2a2620', sub:'rgba(42,38,32,.55)', wordmark:'WHITE', pattern:'stripe' } },
+  { id:'onecard-metal', bank:'OneCard', name:'Metal', network:'Visa', type:'credit',
+    style:{ bg:'linear-gradient(140deg,#4a4d54 0%,#16181c 50%,#3a3d44 100%)',
+            ink:'#f0f2f5', sub:'rgba(240,242,245,.55)', wordmark:'ONECARD', pattern:'metal' } },
+];
+
+const FINISHES = {
+  obsidian: { label:'Obsidian', ink:'#f3f1ee', sub:'rgba(243,241,238,.55)',
+    bg:`radial-gradient(120% 130% at 85% -10%,rgba(255,255,255,.16),transparent 46%),
+        radial-gradient(90% 90% at 0% 110%,rgba(120,150,255,.10),transparent 55%),
+        linear-gradient(140deg,#26282e 0%,#0c0d10 52%,#1b1d22 100%)` },
+  midnight: { label:'Midnight', ink:'#eef3ff', sub:'rgba(238,243,255,.55)',
+    bg:`radial-gradient(120% 130% at 80% -10%,rgba(150,190,255,.22),transparent 48%),
+        radial-gradient(100% 90% at 0% 110%,rgba(40,80,200,.35),transparent 60%),
+        linear-gradient(140deg,#1b2a5c 0%,#0a1230 55%,#111c46 100%)` },
+  emerald: { label:'Emerald', ink:'#eafff4', sub:'rgba(234,255,244,.55)',
+    bg:`radial-gradient(120% 130% at 82% -12%,rgba(120,255,205,.20),transparent 48%),
+        radial-gradient(100% 90% at 0% 110%,rgba(0,120,90,.40),transparent 60%),
+        linear-gradient(140deg,#0e3b31 0%,#04170f 55%,#0b2a22 100%)` },
+  wine: { label:'Wine', ink:'#ffeef1', sub:'rgba(255,238,241,.55)',
+    bg:`radial-gradient(120% 130% at 84% -12%,rgba(255,150,170,.20),transparent 48%),
+        radial-gradient(100% 90% at 0% 110%,rgba(120,10,40,.50),transparent 62%),
+        linear-gradient(140deg,#4a1024 0%,#1a040b 55%,#330b18 100%)` },
+  violet: { label:'Violet', ink:'#f4eeff', sub:'rgba(244,238,255,.55)',
+    bg:`radial-gradient(120% 130% at 84% -12%,rgba(200,160,255,.24),transparent 48%),
+        radial-gradient(100% 90% at 0% 110%,rgba(90,40,180,.45),transparent 62%),
+        linear-gradient(140deg,#3a1f66 0%,#150726 55%,#291349 100%)` },
+  titanium: { label:'Titanium', ink:'#f2f2f4', sub:'rgba(242,242,244,.55)',
+    bg:`repeating-linear-gradient(115deg,rgba(255,255,255,.045) 0 2px,transparent 2px 7px),
+        radial-gradient(120% 130% at 84% -12%,rgba(255,255,255,.24),transparent 46%),
+        linear-gradient(140deg,#6b7079 0%,#2c3037 50%,#4a4f57 100%)` },
+  champagne: { label:'Champagne', ink:'#3a2f1a', sub:'rgba(58,47,26,.55)',
+    bg:`radial-gradient(120% 130% at 84% -12%,rgba(255,255,255,.75),transparent 50%),
+        radial-gradient(100% 90% at 0% 110%,rgba(190,160,100,.45),transparent 62%),
+        linear-gradient(140deg,#efe3c6 0%,#cbb886 52%,#e8dbb9 100%)` },
+};
+
+const byId = (id) => DESIGNS.find(d => d.id === id) || null;
+const findByBankAndName = (bank, name) => {
+  const b = String(bank||'').trim().toLowerCase();
+  const n = String(name||'').trim().toLowerCase();
+  if (!b || !n) return null;
+  return DESIGNS.find(d => d.bank.toLowerCase() === b && d.name.toLowerCase() === n)
+      || DESIGNS.find(d => d.bank.toLowerCase() === b && d.name.toLowerCase().includes(n))
+      || null;
+};
+function themeFor(card) {
+  if (card.design) { const d = byId(card.design); if (d) return d.style; }
+  return FINISHES[card.customFinish] || FINISHES.obsidian;
+}
+
+/* =====================================================================
+   CARD RENDERER
+   ===================================================================== */
+const CHIP_SVG = `
+<svg class="card__chip" viewBox="0 0 44 32" aria-hidden="true">
+  <rect x=".7" y=".7" width="42.6" height="30.6" rx="5.5"
+        fill="url(#chipGrad)" stroke="rgba(0,0,0,.28)" stroke-width="1"/>
+  <g fill="none" stroke="rgba(70,50,10,.45)" stroke-width="1.1" stroke-linecap="round">
+    <path d="M.7 10.5h11M.7 21.5h11M32.3 10.5h11M32.3 21.5h11"/>
+    <path d="M11.5 4.5v23M32.5 4.5v23"/>
+    <rect x="11.5" y="9" width="21" height="14" rx="3.5"/>
+  </g>
+</svg>`;
+const WAVE_SVG = `
+<svg class="card__wave" viewBox="0 0 24 24" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+    <path d="M6.5 7.5a7 7 0 0 1 0 9"/>
+    <path d="M10 4.8a11 11 0 0 1 0 14.4"/>
+    <path d="M13.5 2.2a15 15 0 0 1 0 19.6"/>
+  </g>
+</svg>`;
+
+function networkBadge(net) {
+  const n = String(net || '').toLowerCase();
+  if (n.includes('visa'))     return `<span class="net net--visa">VISA</span>`;
+  if (n.includes('master'))   return `<span class="net net--mc"><i></i><i></i></span>`;
+  if (n.includes('amex') || n.includes('american')) return `<span class="net net--amex">AMEX</span>`;
+  if (n.includes('rupay'))    return `<span class="net net--rupay">RuPay</span>`;
+  if (n.includes('diners'))   return `<span class="net net--plain">DINERS</span>`;
+  if (n.includes('discover')) return `<span class="net net--plain">DISCOVER</span>`;
+  return `<span class="net net--plain">${esc(net || 'CARD').toUpperCase()}</span>`;
+}
+
+function patternHTML(pattern) {
+  if (!pattern || pattern === 'none') return '';
+  const css = {
+    metal: `repeating-linear-gradient(115deg,rgba(255,255,255,.05) 0 1.5px,transparent 1.5px 9px)`,
+    stripe: `linear-gradient(115deg,transparent 42%,rgba(255,255,255,.06) 42% 58%,transparent 58%)`,
+    aura: `radial-gradient(60% 80% at 15% 100%,rgba(255,255,255,.06),transparent 60%)`,
+  }[pattern];
+  if (!css) return '';
+  return `<div class="card__pattern" style="background:${css}"></div>`;
+}
+
+function detectNetwork(digits) {
+  if (!digits) return null;
+  if (/^4/.test(digits)) return 'Visa';
+  const two = Number(digits.slice(0, 2));
+  if (two >= 51 && two <= 55) return 'Mastercard';
+  if (/^2(22[1-9]|2[3-9]\d|[3-6]\d{2}|7[01]\d|720)/.test(digits)) return 'Mastercard';
+  if (/^3[47]/.test(digits)) return 'Amex';
+  if (/^3[068]/.test(digits)) return 'Diners';
+  if (/^6011/.test(digits)) return 'Discover';
+  if (/^(60|65|81|82|508)/.test(digits)) return 'RuPay';
+  return null;
+}
+
+function formatFullPan(pan) {
+  const digits = String(pan || '').replace(/\D/g, '');
+  if (!digits) return '';
+  const net = detectNetwork(digits);
+  if (net === 'Amex')   return [digits.slice(0,4), digits.slice(4,10), digits.slice(10,15)].filter(Boolean).join(' ');
+  if (net === 'Diners') return [digits.slice(0,4), digits.slice(4,10), digits.slice(10,14)].filter(Boolean).join(' ');
+  return digits.match(/.{1,4}/g)?.join(' ') || digits;
+}
+
+function cardEl(card, { tilt = true, fullPan = null } = {}) {
+  const t = themeFor(card);
+  const el = document.createElement('article');
+  el.className = 'card';
+  el.style.setProperty('--ink', t.ink);
+  el.style.setProperty('--sub', t.sub);
+
+  let num;
+  if (fullPan === true) {
+    num = '•••• •••• •••• ' + (card.last4 || '••••');
+  } else if (fullPan) {
+    num = formatFullPan(fullPan);
+  } else if (card.last4) {
+    num = '•••• •••• •••• ' + esc(card.last4);
+  } else {
+    num = '•••• •••• •••• ••••';
+  }
+
+  el.innerHTML = `
+    <div class="card__bg" style="background:${t.bg.replace(/\s*\n\s*/g,' ')}"></div>
+    ${patternHTML(t.pattern)}
+    ${t.wordmark ? `<div class="card__wordmark">${esc(t.wordmark)}</div>` : ''}
+    <div class="card__grain"></div>
+    <div class="card__sheen"></div>
+    <div class="card__content">
+      <div class="card__top">
+        <div>
+          <span class="card__bank">${esc(card.bank) || 'Bank'}</span>
+          ${card.variant ? `<span class="card__variant">${esc(card.variant)}</span>` : ''}
+        </div>
+        <div class="card__net">${networkBadge(card.network)}</div>
+      </div>
+      <div class="card__mid">
+        ${CHIP_SVG}${WAVE_SVG}
+        ${card.type === 'debit' ? '<span class="card__type">DEBIT</span>' : ''}
+      </div>
+      <div class="card__bot">
+        <div class="card__num">${num}</div>
+        <div class="card__meta">
+          <div><span class="card__label">CARD HOLDER</span>
+               <span class="card__value">${esc(card.holder) || '—'}</span></div>
+          <div><span class="card__label">VALID THRU</span>
+               <span class="card__value">${esc(card.expiry) || '—'}</span></div>
+        </div>
+      </div>
+    </div>`;
+  if (tilt) attachTilt(el);
+  return el;
+}
+
+const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
+function attachTilt(el) {
+  if (!canHover) return;
+  let raf = null, tx = 0, ty = 0, mx = 50, my = 50;
+  const apply = () => {
+    raf = null;
+    el.style.setProperty('--rx', ty.toFixed(2) + 'deg');
+    el.style.setProperty('--ry', tx.toFixed(2) + 'deg');
+    el.style.setProperty('--mx', mx.toFixed(1) + '%');
+    el.style.setProperty('--my', my.toFixed(1) + '%');
+  };
+  el.addEventListener('pointermove', (e) => {
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    tx = (px - 0.5) * 18; ty = (0.5 - py) * 14;
+    mx = px * 100; my = py * 100;
+    if (!raf) raf = requestAnimationFrame(apply);
+  });
+  el.addEventListener('pointerleave', () => {
+    tx = 0; ty = 0; mx = 50; my = 50;
+    el.classList.add('is-reset');
+    if (!raf) raf = requestAnimationFrame(apply);
+    setTimeout(() => el.classList.remove('is-reset'), 780);
+  });
+}
+
+/* =====================================================================
+   LOCK INDICATOR
+   ===================================================================== */
+const lockBtn = document.getElementById('lockBtn');
+const LOCK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+const UNLOCK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>`;
+
+function updateLockIndicator() {
+  const unlocked = !!sessionKey;
+  lockBtn.classList.toggle('unlocked', unlocked);
+  lockBtn.innerHTML = unlocked ? UNLOCK_ICON : LOCK_ICON;
+  lockBtn.title = unlocked ? 'Vault unlocked — tap to lock' : 'Vault locked — tap to unlock';
+}
+
+lockBtn.addEventListener('click', async () => {
+  if (sessionKey) { lockVault(); return; }
+  if (!cryptoOK) { alert('Encryption is not available in this context.'); return; }
+  if (!vault.kdf) {
+    try {
+      const pwd = await askPassword('set');
+      await setupVaultPassword(pwd);
+      updateLockIndicator();
+    } catch {}
+    return;
+  }
+  try { await askPassword('unlock'); updateLockIndicator(); } catch {}
+});
+
+/* =====================================================================
+   PASSWORD SHEET
+   ===================================================================== */
+const pwdSheet = document.getElementById('pwdSheet');
+const pwdForm = document.getElementById('pwdForm');
+const pwdTitle = document.getElementById('pwdTitle');
+const pwdSub = document.getElementById('pwdSub');
+const pwdInput = document.getElementById('pwd-input');
+const pwdConfirmWrap = document.getElementById('pwd-confirm-wrap');
+const pwdConfirm = document.getElementById('pwd-confirm');
+const pwdHint = document.getElementById('pwdHint');
+const pwdSubmit = document.getElementById('pwdSubmit');
+const pwdCancel = document.getElementById('pwdCancel');
+const pwdScrim = document.getElementById('pwdScrim');
+
+let pwdMode = null;
+let pwdResolve = null;
+let pwdReject = null;
+
+function askPassword(mode) {
+  return new Promise((resolve, reject) => {
+    pwdMode = mode;
+    pwdResolve = resolve;
+    pwdReject = reject;
+    pwdForm.reset();
+    pwdHint.textContent = '';
+    pwdHint.className = 'hint';
+    pwdInput.value = '';
+    pwdConfirm.value = '';
+    pwdSubmit.disabled = false;
+
+    if (mode === 'set') {
+      pwdTitle.textContent = 'Create vault password';
+      pwdSub.textContent = 'Encrypts your full card numbers and CVVs on this device. It cannot be recovered if lost.';
+      pwdConfirmWrap.style.display = '';
+      pwdSubmit.textContent = 'Create';
+      pwdInput.setAttribute('autocomplete', 'new-password');
+    } else {
+      pwdTitle.textContent = 'Unlock vault';
+      pwdSub.textContent = 'Enter your vault password to reveal full numbers and CVVs.';
+      pwdConfirmWrap.style.display = 'none';
+      pwdSubmit.textContent = 'Unlock';
+      pwdInput.setAttribute('autocomplete', 'current-password');
+    }
+    openSheet(pwdSheet);
+    setTimeout(() => pwdInput.focus({ preventScroll: true }), 320);
+  });
+}
+
+function finishPwd(ok, val) {
+  const r = pwdResolve, j = pwdReject;
+  pwdResolve = pwdReject = null;
+  pwdMode = null;
+  closeSheet(pwdSheet);
+  if (ok && r) r(val);
+  if (!ok && j) j(new Error('cancelled'));
+}
+
+pwdCancel.addEventListener('click', () => finishPwd(false));
+pwdScrim.addEventListener('click', () => finishPwd(false));
+
+pwdForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (pwdSubmit.disabled) return; // guard against double-submit
+
+  const pwd = pwdInput.value;
+  if (!pwd) {
+    pwdHint.textContent = 'Enter a password.';
+    pwdHint.className = 'hint err';
+    return;
+  }
+  if (!cryptoOK) {
+    pwdHint.textContent = 'Encryption is not available in this context. Open the file directly in Chrome/Safari.';
+    pwdHint.className = 'hint err';
+    return;
+  }
+
+  if (pwdMode === 'set') {
+    if (pwd.length < 6) {
+      pwdHint.textContent = 'Use at least 6 characters.';
+      pwdHint.className = 'hint err';
+      return;
+    }
+    if (pwd !== pwdConfirm.value) {
+      pwdHint.textContent = 'Passwords do not match.';
+      pwdHint.className = 'hint err';
+      return;
+    }
+    finishPwd(true, pwd);
+    return;
+  }
+
+  // unlock
+  pwdSubmit.disabled = true;
+  pwdSubmit.textContent = 'Checking…';
+  try {
+    await unlockVault(pwd);
+    finishPwd(true, pwd);
+  } catch (err) {
+    pwdHint.textContent = err.message || 'Incorrect password. Try again.';
+    pwdHint.className = 'hint err';
+    pwdInput.select();
+    pwdSubmit.disabled = false;
+    pwdSubmit.textContent = 'Unlock';
+  }
+});
+
+/* =====================================================================
+   DECK
+   ===================================================================== */
+const deck     = document.getElementById('deck');
+const counter  = document.getElementById('counter');
+const prevBtn  = document.getElementById('prevBtn');
+const nextBtn  = document.getElementById('nextBtn');
+
+function render() {
+  deck.replaceChildren();
+  const cards = vault.cards;
+  if (!cards.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.innerHTML = 'No cards yet.<br>Tap <b>Add card</b> to build your deck.';
+    deck.appendChild(empty);
+    counter.textContent = '';
+    prevBtn.disabled = nextBtn.disabled = true;
+    return;
+  }
+  const shown = cards.slice(0, Math.min(3, cards.length));
+  shown.forEach((c, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'card-slot';
+    slot.dataset.id = c.id;
+    slot.style.transform = `translate3d(0,${-i*15}px,0) scale(${(1-i*0.05).toFixed(4)})`;
+    slot.style.zIndex = String(10 - i);
+    slot.style.opacity = i > 1 ? '0' : '1';
+    const frame = document.createElement('div');
+    frame.className = 'card-frame';
+    frame.appendChild(cardEl(c));
+    slot.appendChild(frame);
+    deck.appendChild(slot);
+  });
+  counter.textContent = `${(pos % cards.length) + 1} / ${cards.length}`;
+  prevBtn.disabled = nextBtn.disabled = cards.length < 2;
+}
+
+let drag = null;
+deck.addEventListener('pointerdown', (e) => {
+  if (!vault.cards.length) return;
+  const slot = e.target.closest('.card-slot');
+  if (!slot || slot !== deck.querySelector('.card-slot')) return;
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, slot, moved: false };
+  slot.style.transition = 'none';
+});
+window.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.dx = dx; drag.dy = dy;
+  if (Math.abs(dx) > 6 || Math.abs(dy) > 6) drag.moved = true;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    drag.slot.style.transform =
+      `translate3d(${dx}px,0,0) rotate(${(dx*0.035).toFixed(2)}deg)`;
+  }
+}, { passive: true });
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+
+function endDrag(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const { slot, dx, dy, moved } = drag;
+  drag = null;
+  slot.style.transition = '';
+  if (Math.abs(dx) > 90) {
+    const dir = Math.sign(dx);
+    slot.style.transform = `translate3d(${dir*140}%,0,0) rotate(${dir*18}deg)`;
+    slot.style.opacity = '0';
+    setTimeout(() => {
+      vault.cards.push(vault.cards.shift());
+      pos = (pos + 1) % Math.max(vault.cards.length, 1);
+      saveVault(); render();
+    }, 300);
+  } else {
+    slot.style.transform = '';
+    if (!moved || (Math.abs(dx) < 8 && Math.abs(dy) < 8)) openDetail(vault.cards[0].id);
+  }
+}
+
+function cycle(dir) {
+  if (vault.cards.length < 2) return;
+  if (dir > 0) { vault.cards.push(vault.cards.shift()); pos++; }
+  else         { vault.cards.unshift(vault.cards.pop());  pos--; }
+  if (pos < 0) pos = vault.cards.length - 1;
+  render();
+}
+nextBtn.addEventListener('click', () => cycle(1));
+prevBtn.addEventListener('click', () => cycle(-1));
+
+/* =====================================================================
+   SHEETS
+   ===================================================================== */
+const detailSheet = document.getElementById('detailSheet');
+
+function openSheet(el) { el.classList.add('is-open'); document.body.classList.add('locked'); }
+function closeSheet(el) {
+  el.classList.remove('is-open');
+  if (!document.querySelector('.sheet.is-open')) document.body.classList.remove('locked');
+  if (el === detailSheet) hideReveal(true);
+}
+document.querySelectorAll('[data-close]').forEach(el =>
+  el.addEventListener('click', () => closeSheet(el.closest('.sheet'))));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')
+    document.querySelectorAll('.sheet.is-open').forEach(closeSheet);
+});
+
+/* =====================================================================
+   DETAIL + REVEAL
+   ===================================================================== */
+const detailCard  = document.getElementById('detailCard');
+const detailSpecs = document.getElementById('detailSpecs');
+const detailWarn  = document.getElementById('detailWarn');
+const revealBtn   = document.getElementById('revealBtn');
+const dbg         = document.getElementById('dbg');
+
+let revealState = null;
+
+function debugLog(msg) {
+  console.log('[Reveal]', msg);
+  const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  dbg.textContent = (dbg.textContent ? dbg.textContent + '\n' : '') + line;
+  dbg.classList.add('show');
+  // keep last ~12 lines
+  const lines = dbg.textContent.split('\n');
+  if (lines.length > 12) dbg.textContent = lines.slice(-12).join('\n');
+}
+
+function renderDetail(c, state) {
+  // Card face
+  const frame = document.createElement('div');
+  frame.className = 'card-frame';
+  // If revealed AND pan present, show full pan on card face. Otherwise show masked.
+  const facePan = (state.revealed && state.pan) ? state.pan : null;
+  frame.appendChild(cardEl(c, { tilt: true, fullPan: facePan }));
+  detailCard.replaceChildren(frame);
+
+  // Warning box
+  if (!c.sec) {
+    detailWarn.innerHTML = '<b>No encrypted number saved.</b> Tap Edit and enter the full card number and CVV to enable Reveal.';
+    detailWarn.classList.add('show');
+  } else {
+    detailWarn.classList.remove('show');
+  }
+
+  // Specs
+  const d = c.design ? byId(c.design) : null;
+  const finishLabel = d ? `${d.bank} · ${d.name}` : (FINISHES[c.customFinish] || FINISHES.obsidian).label;
+
+  let panDisplay, cvvDisplay, panEmpty = false, cvvEmpty = false;
+  if (state.revealed) {
+    if (state.pan) {
+      panDisplay = formatFullPan(state.pan);
+    } else {
+      panDisplay = '(no full number saved)';
+      panEmpty = true;
+    }
+    if (state.cvv) {
+      cvvDisplay = state.cvv;
+    } else {
+      cvvDisplay = '(no CVV saved)';
+      cvvEmpty = true;
+    }
+  } else {
+    panDisplay = '•••• •••• •••• ' + (c.last4 || '••••');
+    cvvDisplay = '•••';
+  }
+
+  const rows = [
+    ['Bank',       c.bank, false],
+    ['Card',       c.variant || '—', false],
+    ['Network',    c.network || '—', false],
+    ['Type',       c.type === 'debit' ? 'Debit' : 'Credit', false],
+    ['Number',     panDisplay, true, panEmpty],
+    ['CVV',        cvvDisplay, true, cvvEmpty],
+    ['Holder',     c.holder || '—', false],
+    ['Valid thru', c.expiry || '—', false],
+    ['Design',     finishLabel, false],
+  ];
+  detailSpecs.innerHTML = rows.map(([k, v, sensitive, empty]) => {
+    let cls = 'spec';
+    if (sensitive) cls += ' spec--sensitive';
+    if (sensitive && state.revealed && !empty) cls += ' spec--revealed';
+    if (empty) cls += ' spec--empty';
+    return `<div class="${cls}"><dt>${k}</dt><dd>${esc(v)}</dd></div>`;
+  }).join('');
+
+  // Button state
+  if (!c.sec) {
+    revealBtn.textContent = 'No saved number · edit to add';
+    revealBtn.disabled = true;
+  } else if (state.revealed) {
+    revealBtn.textContent = `Hide (${state.countdown}s)`;
+    revealBtn.disabled = false;
+  } else {
+    revealBtn.textContent = sessionKey ? 'Reveal full details' : 'Reveal full details (unlock)';
+    revealBtn.disabled = false;
+  }
+}
+
+function openDetail(id) {
+  activeId = id;
+  hideReveal(true);
+  const c = vault.cards.find(x => x.id === id);
+  if (!c) return;
+  renderDetail(c, { revealed: false });
+  openSheet(detailSheet);
+  debugLog(`Opened detail: ${c.bank} ${c.variant || ''} | sec=${!!c.sec} | kdf=${!!vault.kdf} | session=${!!sessionKey} | crypto=${cryptoOK}`);
+}
+
+revealBtn.addEventListener('click', toggleReveal);
+
+async function toggleReveal() {
+  debugLog('Reveal button clicked');
+  const c = vault.cards.find(x => x.id === activeId);
+  if (!c) { debugLog('No active card'); return; }
+
+  if (revealState && revealState.cardId === c.id) {
+    debugLog('Already revealed, hiding');
+    hideReveal();
+    return;
+  }
+
+  if (!c.sec) {
+    debugLog('No sec blob on card');
+    alert('No full number is saved for this card. Tap Edit and enter the full card number + CVV to enable Reveal.');
+    return;
+  }
+
+  if (!cryptoOK) {
+    debugLog('Crypto unavailable');
+    alert('Encryption is not available in this context. Open the file directly in Chrome or Safari (not inside a sandbox preview).');
+    return;
+  }
+
+  // Ensure session
+  if (!sessionKey) {
+    if (!vault.kdf) {
+      debugLog('Vault has kdf=null but card has sec — inconsistent state. Try Reset vault from ⋯ menu.');
+      alert('Vault password state is inconsistent. Open ⋯ → Reset vault, then edit this card to re-enter the number.');
+      return;
+    }
+    debugLog('Session locked, opening password prompt');
+    try {
+      await askPassword('unlock');
+    } catch (err) {
+      debugLog('Password prompt cancelled/failed: ' + (err.message || err));
+      return;
+    }
+    debugLog('Password submitted. sessionKey=' + !!sessionKey);
+    updateLockIndicator();
+  }
+
+  if (!sessionKey) {
+    debugLog('Still no session key after password');
+    alert('Vault session was not established. Please try again.');
+    return;
+  }
+
+  // Decrypt
+  try {
+    debugLog('Decrypting…');
+    const data = await openCardData(c);
+    debugLog('Decrypted. pan=' + (data.pan ? data.pan.length + ' digits' : 'EMPTY') +
+             ', cvv=' + (data.cvv ? data.cvv.length + ' chars' : 'EMPTY'));
+
+    if (!data.pan && !data.cvv) {
+      alert('The saved encrypted data is empty. Tap Edit, enter the full card number and CVV again, and save.');
+      return;
+    }
+
+    startReveal(c, data.pan, data.cvv);
+    debugLog('Reveal started');
+  } catch (err) {
+    debugLog('Decrypt error: ' + (err.message || err));
+    alert('Could not decrypt: ' + (err.message || err) +
+          '\n\nIf you recently imported a backup, the saved data may have been encrypted with a different password.');
+    lockVault();
+  }
+}
+
+function startReveal(c, pan, cvv) {
+  hideReveal(true);
+  revealState = { cardId: c.id, pan, cvv, remaining: 20, interval: null };
+  const tick = () => {
+    if (!revealState) return;
+    renderDetail(c, { revealed: true, countdown: revealState.remaining, pan, cvv });
+    revealState.remaining--;
+    if (revealState.remaining < 0) hideReveal();
+  };
+  tick();
+  revealState.interval = setInterval(tick, 1000);
+}
+
+function hideReveal(silent) {
+  if (revealState && revealState.interval) clearInterval(revealState.interval);
+  const was = revealState;
+  revealState = null;
+  if (!silent && was) {
+    const c = vault.cards.find(x => x.id === activeId);
+    if (c && detailSheet.classList.contains('is-open')) renderDetail(c, { revealed: false });
+  }
+}
+
+document.getElementById('editBtn').addEventListener('click', () => {
+  const c = vault.cards.find(x => x.id === activeId);
+  closeSheet(detailSheet);
+  setTimeout(() => openForm(c), 160);
+});
+document.getElementById('deleteBtn').addEventListener('click', () => {
+  const c = vault.cards.find(x => x.id === activeId);
+  if (!c) return;
+  if (!confirm(`Remove "${c.bank}${c.variant ? ' ' + c.variant : ''}" from your vault?`)) return;
+  vault.cards = vault.cards.filter(x => x.id !== activeId);
+  pos = 0;
+  saveVault();
+  closeSheet(detailSheet);
+  render();
+});
+
+/* =====================================================================
+   FORM
+   ===================================================================== */
+const formSheet = document.getElementById('formSheet');
+const form      = document.getElementById('cardForm');
+const formTitle = document.getElementById('formTitle');
+const livePrev  = document.getElementById('livePreview');
+const matchLabel= document.getElementById('matchLabel');
+const bankList  = document.getElementById('bankList');
+const variantList = document.getElementById('variantList');
+const numberHint = document.getElementById('numberHint');
+const F = (n) => form.elements[n];
+
+const BANKS = [...new Set(DESIGNS.map(d => d.bank))];
+bankList.innerHTML = BANKS.map(b => `<option value="${esc(b)}">`).join('');
+
+function refreshVariantList() {
+  const bank = F('bank').value.trim().toLowerCase();
+  const names = DESIGNS.filter(d => !bank || d.bank.toLowerCase() === bank).map(d => d.name);
+  variantList.innerHTML = [...new Set(names)].map(n => `<option value="${esc(n)}">`).join('');
+}
+
+function formatNumber(raw) {
+  const digits = raw.replace(/\D/g, '');
+  const net = detectNetwork(digits);
+  if (net === 'Amex')
+    return [digits.slice(0,4), digits.slice(4,10), digits.slice(10,15)].filter(Boolean).join(' ');
+  if (net === 'Diners')
+    return [digits.slice(0,4), digits.slice(4,10), digits.slice(10,14)].filter(Boolean).join(' ');
+  return digits.match(/.{1,4}/g)?.join(' ') || '';
+}
+
+function previewCard() {
+  const digits = F('number').value.replace(/\D/g, '');
+  let last4 = digits ? digits.slice(-4) : '';
+  if (!last4 && editingId) {
+    const ex = vault.cards.find(c => c.id === editingId);
+    last4 = ex?.last4 || '';
+  }
+  return {
+    bank:    F('bank').value.trim() || '',
+    variant: F('variant').value.trim() || '',
+    network: F('network').value || 'Visa',
+    type:    F('type').value || 'credit',
+    last4,
+    holder:  F('holder').value.trim() || '',
+    expiry:  F('expiry').value.trim() || '',
+    design:  F('design').value || null,
+    customFinish: F('customFinish').value || 'obsidian',
+  };
+}
+
+function renderPreview() {
+  const frame = document.createElement('div');
+  frame.className = 'card-frame';
+  frame.appendChild(cardEl(previewCard(), { tilt: false }));
+  livePrev.replaceChildren(frame);
+}
+
+function tryMatchDesign() {
+  const bank = F('bank').value.trim();
+  const name = F('variant').value.trim();
+  const hit = findByBankAndName(bank, name);
+  if (hit) {
+    F('design').value = hit.id;
+    F('network').value = hit.network;
+    F('type').value = hit.type;
+    matchLabel.textContent = `✓ ${hit.bank} · ${hit.name}`;
+    matchLabel.classList.add('show');
+  } else {
+    F('design').value = '';
+    matchLabel.classList.remove('show');
+  }
+  renderPreview();
+}
+
+function openForm(card) {
+  editingId = card ? card.id : null;
+  form.reset();
+  F('design').value = '';
+  F('customFinish').value = 'obsidian';
+  F('cvv').value = '';
+
+  if (card) {
+    F('bank').value = card.bank || '';
+    F('variant').value = card.variant || '';
+    F('network').value = card.network || 'Visa';
+    F('type').value = card.type || 'credit';
+    F('expiry').value = card.expiry || '';
+    F('holder').value = card.holder || '';
+    if (card.design) F('design').value = card.design;
+    else F('customFinish').value = card.customFinish || 'obsidian';
+
+    F('number').placeholder = card.last4
+      ? `Leave blank to keep •••• ${card.last4}`
+      : 'Leave blank to keep saved number';
+    numberHint.innerHTML = card.sec
+      ? 'A full number is saved (encrypted). Leave blank to keep it, or type a new full number to replace it.'
+      : 'No full number saved yet. Type the full 16-digit number (and CVV) to enable Reveal.';
+  } else {
+    F('number').placeholder = '0000 0000 0000 0000';
+    numberHint.textContent = 'Enter the full 16-digit number to enable Reveal. Only last 4 saved in plain text.';
+  }
+
+  formTitle.textContent = card ? 'Edit card' : 'Add card';
+  refreshVariantList();
+  renderPreview();
+  openSheet(formSheet);
+  setTimeout(() => F('number').focus({ preventScroll: true }), 320);
+}
+
+F('number').addEventListener('input', (e) => {
+  const digits = e.target.value.replace(/\D/g, '').slice(0, 16);
+  e.target.value = formatNumber(digits);
+  const net = detectNetwork(digits);
+  if (net) {
+    F('network').value = net;
+    numberHint.innerHTML = `Detected <b>${net}</b> from the card BIN. ${digits.length >= 12 ? 'Full number will be encrypted and can be revealed.' : 'Enter the full number to enable Reveal.'}`;
+  } else if (digits.length > 0 && digits.length < 12) {
+    numberHint.innerHTML = `Only <b>${digits.length}</b> digit${digits.length === 1 ? '' : 's'} entered — Reveal will show only what's saved. Enter the full 16-digit number to enable full reveal.`;
+  }
+  renderPreview();
+});
+F('expiry').addEventListener('input', (e) => {
+  let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+  if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+  e.target.value = v;
+  renderPreview();
+});
+F('cvv').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+});
+F('holder').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase();
+  renderPreview();
+});
+F('bank').addEventListener('input', () => { refreshVariantList(); tryMatchDesign(); });
+F('variant').addEventListener('input', tryMatchDesign);
+F('network').addEventListener('change', renderPreview);
+F('type').addEventListener('change', renderPreview);
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const newPanDigits = F('number').value.replace(/\D/g, '');
+  const newCvvDigits = F('cvv').value.replace(/\D/g, '');
+  const existing = editingId ? vault.cards.find(c => c.id === editingId) : null;
+
+  if (!F('bank').value.trim()) return alert('Please enter the bank / issuer name.');
+
+  if (newPanDigits && newPanDigits.length < 4)
+    return alert('Enter at least the last 4 digits, or leave the number blank to keep the existing one.');
+  if (!newPanDigits && !existing)
+    return alert('Please enter at least the last 4 digits of the card number.');
+
+  let last4 = '';
+  if (newPanDigits) last4 = newPanDigits.slice(-4);
+  else if (existing) last4 = existing.last4 || '';
+  if (!last4 || last4.length !== 4) return alert('Need at least 4 digits.');
+
+  const data = {
+    bank:    F('bank').value.trim(),
+    variant: F('variant').value.trim(),
+    network: F('network').value,
+    type:    F('type').value,
+    last4,
+    holder:  F('holder').value.trim(),
+    expiry:  F('expiry').value.trim(),
+    design:  F('design').value || null,
+    customFinish: F('customFinish').value || 'obsidian',
+  };
+
+  const needsSeal = !!(newPanDigits || newCvvDigits);
+
+  let card;
+  if (editingId) {
+    const i = vault.cards.findIndex(c => c.id === editingId);
+    if (i < 0) return;
+    card = { ...vault.cards[i], ...data };
+  } else {
+    card = { id: uid(), createdAt: Date.now(), ...data, sec: null };
+  }
+
+  if (needsSeal) {
+    if (!cryptoOK) {
+      return alert('Encryption is not available in this context. Open the file directly in Chrome or Safari.');
+    }
+    try {
+      if (!vault.kdf) {
+        const pwd = await askPassword('set');
+        await setupVaultPassword(pwd);
+      } else if (!sessionKey) {
+        await askPassword('unlock');
+      }
+      if (!sessionKey) {
+        return alert('Could not establish a vault session. Please try again.');
+      }
+      // Merge with existing decrypted data if available
+      let oldPan = '', oldCvv = '';
+      if (existing && existing.sec) {
+        try { const d = await openCardData(existing); oldPan = d.pan || ''; oldCvv = d.cvv || ''; }
+        catch (err) {
+          // If we can't decrypt the old blob, we can't merge — but we can still overwrite fully.
+          console.warn('Could not read old encrypted data:', err);
+        }
+      }
+      await sealCardData(card, newPanDigits || oldPan, newCvvDigits || oldCvv);
+      updateLockIndicator();
+    } catch (err) {
+      // User cancelled password prompt or an error occurred — do not save
+      return;
+    }
+  }
+
+  if (editingId) {
+    const i = vault.cards.findIndex(c => c.id === editingId);
+    if (i > -1) vault.cards[i] = card;
+  } else {
+    vault.cards.unshift(card);
+    pos = 0;
+  }
+
+  const ok = saveVault();
+  if (!ok && storageOK) alert('Could not write to local storage.');
+  closeSheet(formSheet);
+  render();
+});
+
+document.getElementById('addBtn').addEventListener('click', () => openForm(null));
+
+/* =====================================================================
+   BACKUP / RESET / TEST CARD
+   ===================================================================== */
+const backupSheet = document.getElementById('backupSheet');
+document.getElementById('moreBtn').addEventListener('click', () => openSheet(backupSheet));
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(vault, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `card-vault-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+});
+
+const importFile = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    if (!parsed || parsed.v !== 3 || !Array.isArray(parsed.cards))
+      throw new Error('Not a Card Vault v3 backup');
+    if (!confirm(`Import ${parsed.cards.length} card(s)? This will replace your current vault.`)) return;
+    vault = parsed;
+    sessionKey = null;
+    pos = 0;
+    saveVault();
+    updateLockIndicator();
+    closeSheet(backupSheet);
+    render();
+  } catch (err) {
+    alert('Could not import: ' + err.message);
+  } finally {
+    importFile.value = '';
+  }
+});
+
+document.getElementById('lockMenuBtn').addEventListener('click', () => {
+  lockVault();
+  closeSheet(backupSheet);
+});
+
+document.getElementById('testBtn').addEventListener('click', async () => {
+  if (!cryptoOK) return alert('Encryption unavailable — cannot add test card.');
+  try {
+    let pwd;
+    if (!vault.kdf) {
+      pwd = await askPassword('set');
+      await setupVaultPassword(pwd);
+    } else if (!sessionKey) {
+      await askPassword('unlock');
+    }
+    if (!sessionKey) return alert('Could not establish session.');
+
+    const testCard = {
+      id: uid(),
+      createdAt: Date.now(),
+      bank: 'Test Bank',
+      variant: 'Demo',
+      network: 'Visa',
+      type: 'credit',
+      last4: '9010',
+      holder: 'TEST USER',
+      expiry: '08/28',
+      design: 'onecard-metal',
+      customFinish: 'obsidian',
+      sec: null,
+    };
+    await sealCardData(testCard, '4000123456789010', '123');
+    vault.cards.unshift(testCard);
+    saveVault();
+    closeSheet(backupSheet);
+    render();
+    alert('Test card added with PAN 4000 1234 5678 9010 and CVV 123. Open it and tap Reveal to verify the flow works on this browser.');
+  } catch (err) {
+    alert('Test card failed: ' + (err.message || err));
+  }
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('Reset vault? This erases all saved full numbers and CVVs, and forgets your password. Cards and last-4 digits remain.')) return;
+  vault.kdf = null;
+  vault.check = null;
+  vault.cards.forEach(c => { c.sec = null; });
+  sessionKey = null;
+  saveVault();
+  updateLockIndicator();
+  closeSheet(backupSheet);
+  render();
+});
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+vault = loadVault();
+updateLockIndicator();
+render();
+debugLog(`Boot: cards=${vault.cards.length} kdf=${!!vault.kdf} crypto=${cryptoOK}`);
+
+window.addEventListener('pagehide', () => { sessionKey = null; });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') hideReveal(true);
+});
+</script>
+</body>
+</html>
